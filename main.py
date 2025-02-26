@@ -3,20 +3,21 @@
 
 
 
-
 import sys
 import os
 import openpyxl
 from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QPushButton, QHeaderView
 )
+from PyQt6.QtGui import QColor
 
 def read_excel_columns_as_records(filename, sheetname=None):
     """
     openpyxl을 사용하여 엑셀 파일의 첫 번째 행(이름)과 두 번째 행(코드)을 읽고,
-    각 열을 하나의 레코드 (이름, 코드)로 묶어 리스트로 반환합니다.
+    각 열을 (이름, 코드) 튜플의 리스트로 반환합니다.
     """
     wb = openpyxl.load_workbook(filename, data_only=True)
     ws = wb[sheetname] if sheetname else wb.active
@@ -57,9 +58,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("코드 mapping")
-        self.resize(800, 900)  # 초기 창 크기: width=800, height=1000
+        self.resize(800, 900)
 
-        # 메인 위젯 및 수직 레이아웃 생성
+        # 메인 위젯 및 레이아웃 설정
         main_widget = QWidget()
         main_layout = QVBoxLayout()
         main_widget.setLayout(main_layout)
@@ -68,7 +69,7 @@ class MainWindow(QMainWindow):
         # 상단: 병원코드와 LG코드 파일 데이터를 표시하는 TableWidget들을 담는 수평 레이아웃
         table_layout = QHBoxLayout()
 
-        # 병원코드 파일용 TableWidget 생성
+        # 병원코드 TableWidget
         self.tableWidgetHospital = QTableWidget()
         self.tableWidgetHospital.setShowGrid(True)
         self.tableWidgetHospital.setAlternatingRowColors(True)
@@ -83,7 +84,7 @@ class MainWindow(QMainWindow):
         layout_hospital.addWidget(self.tableWidgetHospital)
         table_layout.addLayout(layout_hospital)
 
-        # LG코드 파일용 TableWidget 생성
+        # LG코드 TableWidget
         self.tableWidgetLG = QTableWidget()
         self.tableWidgetLG.setShowGrid(True)
         self.tableWidgetLG.setAlternatingRowColors(True)
@@ -100,29 +101,25 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(table_layout)
 
-        # 개별 TableWidget의 헤더 배경색을 좀 더 짙은 보라색(#8A2BE2)으로 설정
-        self.tableWidgetHospital.horizontalHeader().setStyleSheet("background-color:rgb(200, 157, 241);")
-        self.tableWidgetLG.horizontalHeader().setStyleSheet("background-color: rgb(200, 157, 241);")
+        # 개별 TableWidget의 헤더 배경색 설정 (예: rgb(200,157,241))
+        self.tableWidgetHospital.horizontalHeader().setStyleSheet("background-color: rgb(200,157,241);")
+        self.tableWidgetLG.horizontalHeader().setStyleSheet("background-color: rgb(200,157,241);")
 
-        # 중간: 연결코드 TableWidget 위에 '코드연결' 및 '코드해제' 버튼 추가
+        # 중간: '코드연결' 및 '코드해제' 버튼
         button_layout = QHBoxLayout()
         self.connectButton = QPushButton("코드연결")
         self.disconnectButton = QPushButton("코드해제")
-        # 버튼 높이를 기본 높이의 2배로 설정
         self.connectButton.setFixedHeight(self.connectButton.sizeHint().height() * 2)
         self.disconnectButton.setFixedHeight(self.disconnectButton.sizeHint().height() * 2)
-        # 기본 배경색 설정
         self.connectButton.setStyleSheet("QPushButton { background-color: lightblue; }")
         self.disconnectButton.setStyleSheet("QPushButton { background-color: lightcoral; }")
-        # "코드연결" 버튼: 병원코드, LG코드 TableWidget에서 선택된 행의 데이터를 연결 TableWidget에 추가
         self.connectButton.clicked.connect(self.connect_selected_data)
-        # "코드해제" 버튼: 연결 TableWidget에서 선택된 행 삭제
         self.disconnectButton.clicked.connect(self.disconnect_selected_data)
         button_layout.addWidget(self.connectButton)
         button_layout.addWidget(self.disconnectButton)
         main_layout.addLayout(button_layout)
 
-        # 연결코드 TableWidget (헤더: 병원 이름, 병원 코드, LG 이름, LG 코드)
+        # 하단: 연결코드 TableWidget (헤더: 병원 이름, 병원 코드, LG 이름, LG 코드)
         self.connectionTableWidget = QTableWidget()
         self.connectionTableWidget.setShowGrid(True)
         self.connectionTableWidget.setAlternatingRowColors(True)
@@ -134,27 +131,31 @@ class MainWindow(QMainWindow):
         self.connectionTableWidget.setColumnCount(4)
         self.connectionTableWidget.setHorizontalHeaderLabels(["병원 이름", "병원 코드", "LG 이름", "LG 코드"])
         self.connectionTableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        # 연결코드 TableWidget 헤더 배경색도 짙은 보라색으로 설정
-        self.connectionTableWidget.horizontalHeader().setStyleSheet("background-color: rgb(200, 157, 241);")
+        # 연결 TableWidget 헤더 배경색은 중간톤 보라색 (#B889EE)
+        self.connectionTableWidget.horizontalHeader().setStyleSheet("background-color: #B889EE;")
         main_layout.addWidget(self.connectionTableWidget)
 
-        # 하단: 종료 버튼 (높이 2배로 설정)
+        # 하단: 종료 버튼 (높이 2배, 옅은 주황색)
         self.exitButton = QPushButton("종료")
         self.exitButton.clicked.connect(self.save_and_exit)
         self.exitButton.setFixedHeight(self.exitButton.sizeHint().height() * 2)
-        self.exitButton.setStyleSheet("QPushButton { background-color:rgb(214, 151, 96); }")
+        self.exitButton.setStyleSheet("QPushButton { background-color: rgb(214,151,96); }")
         main_layout.addWidget(self.exitButton)
 
         # 데이터 로드 (병원코드, LG코드 TableWidget 자동 로드)
         self.load_data_to_table('병원코드.xlsx', self.tableWidgetHospital)
         self.load_data_to_table('LG코드.xlsx', self.tableWidgetLG)
-        # 프로그램 실행 시 "코드연결.xlsx" 파일이 있으면 데이터를 로드하여 연결 TableWidget에 출력
+        # 프로그램 실행 시 "코드연결.xlsx" 파일이 있으면 연결 TableWidget에 로드
         self.load_connection_from_excel()
+        # 하이라이트 갱신: 병원코드와 LG코드 TableWidget 업데이트
+        self.update_hosp_table_highlight()
+        self.update_lg_table_highlight()
 
     def connect_selected_data(self):
         """
-        병원코드와 LG코드 TableWidget에서 각각 선택한 행의 데이터를 읽어,
-        연결 TableWidget에 (병원 이름, 병원 코드, LG 이름, LG 코드) 형태로 추가합니다.
+        병원코드와 LG코드 TableWidget에서 선택한 행의 데이터를 읽어,
+        연결 TableWidget에 (병원 이름, 병원 코드, LG 이름, LG 코드) 형태로 추가하고,
+        하이라이트를 갱신합니다.
         """
         hosp_items = self.tableWidgetHospital.selectedItems()
         lg_items = self.tableWidgetLG.selectedItems()
@@ -169,15 +170,10 @@ class MainWindow(QMainWindow):
         hosp_row = hosp_items[0].row()
         lg_row = lg_items[0].row()
 
-        hosp_name_item = self.tableWidgetHospital.item(hosp_row, 0)
-        hosp_code_item = self.tableWidgetHospital.item(hosp_row, 1)
-        lg_name_item = self.tableWidgetLG.item(lg_row, 0)
-        lg_code_item = self.tableWidgetLG.item(lg_row, 1)
-
-        hosp_name = hosp_name_item.text() if hosp_name_item is not None else ""
-        hosp_code = hosp_code_item.text() if hosp_code_item is not None else ""
-        lg_name = lg_name_item.text() if lg_name_item is not None else ""
-        lg_code = lg_code_item.text() if lg_code_item is not None else ""
+        hosp_name = self.tableWidgetHospital.item(hosp_row, 0).text() if self.tableWidgetHospital.item(hosp_row, 0) else ""
+        hosp_code = self.tableWidgetHospital.item(hosp_row, 1).text() if self.tableWidgetHospital.item(hosp_row, 1) else ""
+        lg_name = self.tableWidgetLG.item(lg_row, 0).text() if self.tableWidgetLG.item(lg_row, 0) else ""
+        lg_code = self.tableWidgetLG.item(lg_row, 1).text() if self.tableWidgetLG.item(lg_row, 1) else ""
 
         row = self.connectionTableWidget.rowCount()
         self.connectionTableWidget.insertRow(row)
@@ -186,10 +182,12 @@ class MainWindow(QMainWindow):
         self.connectionTableWidget.setItem(row, 2, QTableWidgetItem(lg_name))
         self.connectionTableWidget.setItem(row, 3, QTableWidgetItem(lg_code))
         print("선택한 데이터가 연결 TableWidget에 추가되었습니다.")
+        self.update_hosp_table_highlight()
+        self.update_lg_table_highlight()
 
     def disconnect_selected_data(self):
         """
-        연결 TableWidget에서 선택된 행들을 삭제합니다.
+        연결 TableWidget에서 선택된 행들을 삭제하고, 하이라이트를 갱신합니다.
         """
         selected_rows = self.connectionTableWidget.selectionModel().selectedRows()
         if not selected_rows:
@@ -199,6 +197,8 @@ class MainWindow(QMainWindow):
         for row in rows_to_remove:
             self.connectionTableWidget.removeRow(row)
         print("선택한 행이 연결 TableWidget에서 삭제되었습니다.")
+        self.update_hosp_table_highlight()
+        self.update_lg_table_highlight()
 
     def load_data_to_table(self, filename, table_widget):
         records = read_excel_columns_as_records(filename)
@@ -216,10 +216,6 @@ class MainWindow(QMainWindow):
         table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
 
     def load_connection_from_excel(self):
-        """
-        프로그램 실행 시 "코드연결.xlsx" 파일이 존재하면 해당 데이터를 읽어
-        연결 TableWidget에 출력합니다. (첫 행은 헤더로 가정)
-        """
         filename = "코드연결.xlsx"
         if not os.path.exists(filename):
             print(f"{filename} 파일이 존재하지 않습니다.")
@@ -238,11 +234,10 @@ class MainWindow(QMainWindow):
                 value = row[col_index] if col_index < len(row) else ""
                 self.connectionTableWidget.setItem(row_index, col_index, QTableWidgetItem(str(value) if value is not None else ""))
         print("코드연결.xlsx 파일에서 데이터를 로드하였습니다.")
+        self.update_hosp_table_highlight()
+        self.update_lg_table_highlight()
 
     def save_connection_data_to_excel(self):
-        """
-        연결 TableWidget의 데이터를 "코드연결.xlsx" 파일로 저장합니다.
-        """
         wb = Workbook()
         ws = wb.active
         headers = ["병원 이름", "병원 코드", "LG 이름", "LG 코드"]
@@ -255,22 +250,62 @@ class MainWindow(QMainWindow):
                 item = self.connectionTableWidget.item(row, col)
                 row_data.append(item.text() if item is not None else "")
             ws.append(row_data)
-
-        # 각 열의 너비를 20으로 설정 (열 A, B, C, D)
-        from openpyxl.utils import get_column_letter
         for i in range(1, col_count + 1):
-            col_letter = get_column_letter(i)
-            ws.column_dimensions[col_letter].width = 20
-
+            ws.column_dimensions[get_column_letter(i)].width = 20
         wb.save("코드연결.xlsx")
         print("코드연결.xlsx 파일이 저장되었습니다.")
 
     def save_and_exit(self):
-        """
-        종료 버튼 클릭 시, 연결 TableWidget의 데이터를 저장 후 프로그램 종료합니다.
-        """
         self.save_connection_data_to_excel()
         self.close()
+
+    def update_hosp_table_highlight(self):
+        """
+        병원코드 TableWidget의 각 행에서, 두 번째 열(병원 코드)이 연결 TableWidget의 두 번째 열에 있으면
+        해당 행의 배경색을 노란색으로, 없으면 짝수행은 흰색, 홀수행은 회색으로 설정합니다.
+        """
+        for row in range(self.tableWidgetHospital.rowCount()):
+            code_item = self.tableWidgetHospital.item(row, 1)
+            if code_item is None:
+                continue
+            hosp_code = code_item.text().strip()
+            found = False
+            for conn_row in range(self.connectionTableWidget.rowCount()):
+                conn_item = self.connectionTableWidget.item(conn_row, 1)
+                if conn_item and conn_item.text().strip() == hosp_code:
+                    found = True
+                    break
+            for col in range(self.tableWidgetHospital.columnCount()):
+                item = self.tableWidgetHospital.item(row, col)
+                if item:
+                    if found:
+                        item.setBackground(QColor("yellow"))
+                    else:
+                        item.setBackground(QColor("white") if row % 2 == 0 else QColor("lightgray"))
+
+    def update_lg_table_highlight(self):
+        """
+        LG코드 TableWidget의 각 행에서, 두 번째 열(LG 코드)이 연결 TableWidget의 네 번째 열에 있으면
+        해당 행의 배경색을 노란색으로, 없으면 짝수행은 흰색, 홀수행은 회색으로 설정합니다.
+        """
+        for row in range(self.tableWidgetLG.rowCount()):
+            code_item = self.tableWidgetLG.item(row, 1)
+            if code_item is None:
+                continue
+            lg_code = code_item.text().strip()
+            found = False
+            for conn_row in range(self.connectionTableWidget.rowCount()):
+                conn_item = self.connectionTableWidget.item(conn_row, 3)
+                if conn_item and conn_item.text().strip() == lg_code:
+                    found = True
+                    break
+            for col in range(self.tableWidgetLG.columnCount()):
+                item = self.tableWidgetLG.item(row, col)
+                if item:
+                    if found:
+                        item.setBackground(QColor("yellow"))
+                    else:
+                        item.setBackground(QColor("white") if row % 2 == 0 else QColor("lightgray"))
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
